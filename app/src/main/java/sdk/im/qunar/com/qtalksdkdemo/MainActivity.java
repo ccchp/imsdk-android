@@ -4,11 +4,13 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.qunar.im.ui.activity.TabMainActivity;
 import com.qunar.im.ui.sdk.QIMSdk;
 
 
@@ -28,7 +30,7 @@ public class MainActivity extends Activity {
         logcat_text = (TextView) findViewById(R.id.logcat_text);
 
 //        startPlatForm.setText("启动" + CommonConfig.currentPlat);
-        startPlatForm.setText("shcema跳转");
+        startPlatForm.setText("启动qtalk");
     }
 
     /**
@@ -47,7 +49,11 @@ public class MainActivity extends Activity {
      * @param view
      */
     public void configNavigation(View view) {
-        String url = "xxxx";
+        String url = "";//导航URl
+        if(TextUtils.isEmpty(url)){
+            toast("请配置正确的导航地址");
+            return;
+        }
         QIMSdk.getInstance().setNavigationUrl(url);
         toast("导航配置成功");
         logcat_text.append("导航地址：" + url + "\n");
@@ -72,8 +78,8 @@ public class MainActivity extends Activity {
                     }
                 });
             }else {
-                final String uid = "xxx";
-                final String password = "xxxx";
+                final String uid = "";//用户名
+                final String password = "";//密码
                 QIMSdk.getInstance().login(uid, password, new QIMSdk.LoginStatesListener() {
                     @Override
                     public void isScuess(boolean b, String s) {
@@ -108,7 +114,7 @@ public class MainActivity extends Activity {
 
     public void startMainActivity(View view) {
 
-        startActivity(new Intent(this,TestActivity.class));
+        startActivity(new Intent(this,TabMainActivity.class));
     }
 
     /**

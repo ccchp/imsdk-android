@@ -12,6 +12,11 @@ import android.text.TextUtils;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.target.ViewTarget;
 import com.facebook.imagepipeline.core.ImagePipelineFactory;
+import com.qunar.im.base.presenter.impl.QChatLoginPresenter;
+import com.qunar.im.base.util.Constants;
+import com.qunar.im.core.manager.IMLogicManager;
+import com.qunar.im.protobuf.common.CurrentPreference;
+import com.qunar.im.ui.fragment.ConversationFragment;
 import com.qunar.im.utils.ConnectionUtil;
 import com.qunar.im.base.common.BackgroundExecutor;
 import com.qunar.im.base.common.QunarIMApp;
@@ -50,11 +55,15 @@ public class QIMSdk implements IMNotificaitonCenter.NotificationCenterDelegate {
 
     private LoginStatesListener loginListener;
 
-    private static QIMSdk instance;
+    private static volatile QIMSdk instance;
 
     public static QIMSdk getInstance() {
-        if (instance == null) {
-            instance = new QIMSdk();
+        if(instance == null){
+            synchronized (QIMSdk.class){
+                if (instance == null) {
+                    instance = new QIMSdk();
+                }
+            }
         }
         return instance;
     }
@@ -156,11 +165,6 @@ public class QIMSdk implements IMNotificaitonCenter.NotificationCenterDelegate {
             CommonConfig.isQtalk = applicationInfo.metaData.getBoolean("serverDoMain");
             CommonConfig.schema = applicationInfo.metaData.getString("SCHEME");
             CommonConfig.currentPlat = applicationInfo.metaData.getString("currentPlat");
-//            Constants.Config.HTTP_SERV_URL = applicationInfo.metaData.getString("HTTP_SERV_URL");
-//            Constants.Config.PUB_NET_XMPP_Host = applicationInfo.metaData.getString("PUB_NET_XMPP_HOST");
-//            Constants.Config.PUB_NET_XMPP_Domain = applicationInfo.metaData.getString("PUB_NET_XMPP_DOMAIN");
-//            Constants.Config.PUBLIC_XMPP_PORT = applicationInfo.metaData.getInt("PUBLIC_XMPP_PORT");
-//            CommonConfig.schema = applicationInfo.metaData.getString("APPKEY");
         }
     }
 
@@ -260,6 +264,28 @@ public class QIMSdk implements IMNotificaitonCenter.NotificationCenterDelegate {
     }
 
     /**
+     * 使用qvt进行登录
+     * @param qvt
+     * @param plat
+     * @param loginStatesListener
+     */
+    public void loginByQvt(String qvt,String plat,LoginStatesListener loginStatesListener){
+        loginListener = loginStatesListener;
+        if (TextUtils.isEmpty(qvt) || TextUtils.isEmpty(plat)) {
+            if (loginListener != null) {
+                loginListener.isScuess(false, "qvt、plat不能为空!");
+                return;
+            }
+            return;
+        }
+        DataUtils.getInstance(CommonConfig.globalContext).putPreferences(Constants.Preferences.qchat_qvt, qvt);
+        CurrentPreference.getInstance().setQvt(qvt);
+        ConnectionUtil.getInstance().initNavConfig(true);
+        QChatLoginPresenter qChatLoginPresenter = new QChatLoginPresenter();
+        qChatLoginPresenter.loginByToken(plat);
+    }
+
+    /**
      * 登出
      */
     public void signOut(){
@@ -293,11 +319,73 @@ public class QIMSdk implements IMNotificaitonCenter.NotificationCenterDelegate {
     }
 
     /**
+     * 获取消息列表fragement
+     * @return
+     */
+    public Fragment getConversationListFragment(){
+        return new ConversationFragment();
+    }
+
+    /**
      * 获取通讯录
      * @return
      */
     public Fragment getContactsFragment(){
         return QtalkNavicationService.getInstance().getNavConfigResult().RNAndroidAbility.RNContactView ? new RNContactsFragment() : new BuddiesFragment();
+    }
+
+    /**
+     * 无domain的userid
+     * @return
+     */
+    public String getUserIDNoDomain(){
+        return CurrentPreference.getInstance().getUserid();
+    }
+
+    /**
+     * 带domain的userid
+     * @return
+     */
+    public String getUserIDWithDomain(){
+        return CurrentPreference.getInstance().getPreferenceUserId();
+    }
+
+    /**
+     * 获取当前导航地址
+     * @return
+     */
+    public String getCurrentNavUrl(){
+        return QtalkNavicationService.getInstance().getCurrentNavUrl();
+    }
+
+    /**
+     * 获取当前域 domain
+     * @return
+     */
+    public String getCurrentDomain(){
+        return QtalkNavicationService.getInstance().getXmppdomain();
+    }
+
+    /**
+     * 获取单人名片
+     * @param jid
+     * @param callBack
+     * @param enforce
+     * @param todb
+     */
+    public void getUserCard(String jid, IMLogicManager.NickCallBack callBack, boolean enforce, boolean todb){
+        ConnectionUtil.getInstance().getUserCard(jid,callBack,enforce,todb);
+    }
+
+    /**
+     * 获取群名片
+     * @param jid
+     * @param callBack
+     * @param enforce
+     * @param todb
+     */
+    public void getMucCard(String jid, IMLogicManager.NickCallBack callBack,boolean enforce,boolean todb){
+        ConnectionUtil.getInstance().getMucCard(jid,callBack,enforce,todb);
     }
 
     /**
@@ -336,7 +424,15 @@ public class QIMSdk implements IMNotificaitonCenter.NotificationCenterDelegate {
             }
         } else if (key.equals(QtalkEvent.LOGIN_FAILED)) {
             if (loginListener != null) {
-                loginListener.isScuess(false, "登录失败！");
+                if(args != null && args.length > 0){
+                    if(args.length > 1){
+                        loginListener.isScuess(false, "登录失败！ Error message:" + args[1].toString());
+                    }else {
+                        loginListener.isScuess(false, "登录失败！ Error code:" + args[0]);
+                    }
+                }else {
+                    loginListener.isScuess(false, "登录失败");
+                }
             }
         }
     }
